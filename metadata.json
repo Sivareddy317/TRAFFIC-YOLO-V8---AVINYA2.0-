@@ -1,5 +1,5 @@
 {
-  "name": "VioTrack AI",
+  "name": "TrafficGuard",
   "description": "AI-powered traffic violation detection engine for helmet and seatbelt enforcement.",
   "requestFramePermissions": [
     "camera"

@@ -10,7 +10,7 @@ const app = express();
 const PORT = 3000;
 
 // MongoDB Connection with Fallback
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/viotrack";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/trafficguard";
 let isMongoConnected = false;
 let inMemoryDetections: any[] = [];
 

@@ -1,6 +1,6 @@
-# VioTrack - AI Traffic Violation Detection System
+# TrafficGuard - AI Traffic Violation Detection System
 
-VioTrack is a high-performance traffic analysis engine that uses AI to detect traffic rule violations (Helmet, Seatbelt) and recognize license plates from images and videos. It features a YOLOv8-style visual interface with dynamic tracking and a simulated computer vision console.
+TrafficGuard is a high-performance traffic analysis engine that uses AI to detect traffic rule violations (Helmet, Seatbelt) and recognize license plates from images and videos. It features a YOLOv8-style visual interface with dynamic tracking and a simulated computer vision console.
 
 ## Tech Stack
 
@@ -21,7 +21,7 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 ```bash
 git clone <your-repo-url>
-cd viotrack
+cd trafficguard
 ```
 
 ### 2. Install Dependencies
@@ -33,7 +33,7 @@ npm install
 Create a `.env` file in the root directory and add your credentials:
 ```env
 GEMINI_API_KEY="your_actual_gemini_api_key_here"
-MONGODB_URI="mongodb://localhost:27017/viotrack"
+MONGODB_URI="mongodb://localhost:27017/trafficguard"
 APP_URL="http://localhost:3000"
 ```
 *Note: You can use `.env.example` as a template.*

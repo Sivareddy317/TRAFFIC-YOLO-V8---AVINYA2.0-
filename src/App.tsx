@@ -227,7 +227,7 @@ export default function App() {
       const imageData = await base64Promise;
 
       const prompt = `
-        SYSTEM: You are VioTrack, a YOLOv8-based traffic analysis engine.
+        SYSTEM: You are TrafficGuard, a YOLOv8-based traffic analysis engine.
         Analyze this traffic scene using computer vision principles. 
         
         TASK:
@@ -324,7 +324,7 @@ export default function App() {
             <Shield className="text-white" size={24} />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-white leading-tight">VioTrack AI</h1>
+            <h1 className="font-bold text-lg text-white leading-tight">TrafficGuard</h1>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Surveillance</p>
           </div>
         </div>
@@ -644,7 +644,7 @@ export default function App() {
             </div>
             <div className="text-center">
               <h3 className="text-xl font-bold text-white mb-2">Upload Traffic Data</h3>
-              <p className="text-slate-500 max-w-md">Upload images or videos of traffic flow. VioTrack AI will automatically detect vehicles and flag violations based on enforcement rules.</p>
+              <p className="text-slate-500 max-w-md">Upload images or videos of traffic flow. TrafficGuard will automatically detect vehicles and flag violations based on enforcement rules.</p>
             </div>
             <label className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl cursor-pointer transition-all shadow-lg shadow-blue-600/20">
               {isUploading ? <Loader2 className="animate-spin" /> : <Upload size={20} />}
