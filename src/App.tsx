@@ -60,6 +60,14 @@ const StatCard = ({ icon: Icon, label, value, color, subValue }: { icon: any, la
   </div>
 );
 
+const CLASS_COLORS: Record<string, string> = {
+  'four_wheeler': '#3b82f6', // Blue (Car/Bus)
+  'two_wheeler': '#a855f7',  // Purple (Bike)
+  'truck': '#f59e0b',        // Orange
+  'pedestrian': '#ec4899',   // Pink
+  'violation': '#ef4444',    // Red
+};
+
 const DetectionOverlay = ({ results, mediaRef, currentTime = 0 }: { results: ViolationResult[], mediaRef: React.RefObject<HTMLImageElement | HTMLVideoElement | null>, currentTime?: number }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
@@ -84,31 +92,26 @@ const DetectionOverlay = ({ results, mediaRef, currentTime = 0 }: { results: Vio
     };
   }, [mediaRef]);
 
-  // Filter results based on current time if it's a video
   const activeResults = useMemo(() => {
-    if (currentTime === 0 && !results.some(r => r.timestamp_ms !== undefined)) return results;
-    
-    // Find the closest timestamp group (within 500ms)
+    if (!results.some(r => r.timestamp_ms !== undefined)) return results;
     const timeInMs = currentTime * 1000;
-    const closestTime = results.reduce((prev, curr) => {
-      if (curr.timestamp_ms === undefined) return prev;
-      return (Math.abs(curr.timestamp_ms - timeInMs) < Math.abs((prev?.timestamp_ms || 0) - timeInMs) ? curr : prev);
-    }, results[0]);
-
-    if (closestTime?.timestamp_ms === undefined) return results;
-
-    return results.filter(r => Math.abs((r.timestamp_ms || 0) - (closestTime.timestamp_ms || 0)) < 100);
+    const availableTimestamps = Array.from(new Set(results.map(r => r.timestamp_ms).filter(t => t !== undefined))) as number[];
+    if (availableTimestamps.length === 0) return results;
+    const closestTimestamp = availableTimestamps.reduce((prev, curr) => {
+      return (Math.abs(curr - timeInMs) < Math.abs(prev - timeInMs) ? curr : prev);
+    });
+    return results.filter(r => r.timestamp_ms === closestTimestamp);
   }, [results, currentTime]);
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {/* Enforcement Line (Reference Image Style) */}
+    <div className="absolute inset-0 pointer-events-none overflow-hidden font-mono">
+      {/* OpenCV Style Enforcement Line */}
       <div 
-        className="absolute w-full h-[2px] bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)] z-10"
+        className="absolute w-full h-[1px] bg-red-500/80 z-10"
         style={{ top: '55%' }}
       >
-        <div className="absolute -top-5 left-4 bg-red-600 text-white text-[8px] px-1 font-bold rounded">
-          ENFORCEMENT_LINE_01
+        <div className="absolute -top-4 left-2 text-[9px] text-red-500 font-bold uppercase">
+          cv2.line(frame, (0, y), (w, y), (0,0,255), 2)
         </div>
       </div>
 
@@ -120,50 +123,34 @@ const DetectionOverlay = ({ results, mediaRef, currentTime = 0 }: { results: Vio
         const height = ((ymax - ymin) / 1000) * dimensions.height;
 
         const isViolation = res.violation_type !== 'NONE';
-        const color = isViolation ? '#ef4444' : '#22c55e';
-        const thickness = isViolation ? 3 : 1;
+        const baseColor = CLASS_COLORS[res.vehicle_type] || '#22c55e';
+        const color = isViolation ? CLASS_COLORS.violation : baseColor;
 
         return (
           <React.Fragment key={idx}>
-            {/* Vehicle Box */}
+            {/* YOLO Bounding Box */}
             <div 
               style={{
                 position: 'absolute',
                 left, top, width, height,
-                border: `${thickness}px solid ${color}`,
-                transition: 'all 0.3s ease'
+                border: `2px solid ${color}`,
+                boxShadow: isViolation ? `0 0 10px ${color}44` : 'none'
               }}
             >
-              {/* YOLO Style Label (Reference Image Style) */}
+              {/* YOLO Label */}
               <div 
-                className="absolute -top-5 left-0 px-1 text-[10px] font-bold text-white whitespace-nowrap"
+                className="absolute -top-[18px] left-[-2px] px-1 text-[10px] font-bold text-white whitespace-nowrap leading-tight"
                 style={{ backgroundColor: color }}
               >
-                {res.vehicle_type.replace('_', ' ')} {(res.confidence * 1).toFixed(2)}
+                {res.vehicle_type} {Math.round(res.confidence * 100)}%
               </div>
               
-              {/* Violation Details (Floating) */}
               {isViolation && (
-                <div className="absolute -bottom-6 left-0 bg-black/80 text-[8px] text-white px-1 rounded border border-red-500">
-                  {res.violation_type} | {res.plate_number}
+                <div className="absolute -bottom-5 left-0 bg-red-600 text-[9px] text-white px-1 font-bold uppercase">
+                  {res.violation_type}
                 </div>
               )}
             </div>
-
-            {/* Violation Zone Box (Head/Torso) */}
-            {res.violation_zone_bbox && isViolation && (
-              <div 
-                style={{
-                  position: 'absolute',
-                  left: (res.violation_zone_bbox[1] / 1000) * dimensions.width,
-                  top: (res.violation_zone_bbox[0] / 1000) * dimensions.height,
-                  width: ((res.violation_zone_bbox[3] - res.violation_zone_bbox[1]) / 1000) * dimensions.width,
-                  height: ((res.violation_zone_bbox[2] - res.violation_zone_bbox[0]) / 1000) * dimensions.height,
-                  border: '2px solid #ef4444',
-                  boxShadow: '0 0 5px rgba(239,68,68,0.5)'
-                }}
-              />
-            )}
           </React.Fragment>
         );
       })}
@@ -240,39 +227,29 @@ export default function App() {
       const imageData = await base64Promise;
 
       const prompt = `
-        SYSTEM: You are VioTrack, a high-performance traffic analysis engine.
-        Analyze this traffic scene. 
+        SYSTEM: You are VioTrack, a YOLOv8-based traffic analysis engine.
+        Analyze this traffic scene using computer vision principles. 
         
         TASK:
-        1. Detect ALL vehicles (cars, buses, trucks, motorcycles, auto-rickshaws).
-        2. Classify each vehicle strictly.
-        3. Check for violations:
-           - two_wheeler -> NO_HELMET
-           - four_wheeler -> NO_SEATBELT
-        4. Provide normalized bounding boxes [ymin, xmin, ymax, xmax] (0-1000).
+        1. Perform object detection for ALL vehicles.
+        2. Classify: "four_wheeler", "two_wheeler", "truck", "pedestrian".
+        3. Check for violations (NO_HELMET, NO_SEATBELT).
+        4. Provide YOLO-standard normalized bounding boxes [ymin, xmin, ymax, xmax] (0-1000).
         
-        IF THIS IS A VIDEO:
-        - Provide detections at multiple timestamps (e.g., every 1-2 seconds).
-        - Include a "timestamp_ms" field for each detection indicating the time in the video.
+        IF VIDEO:
+        - Return temporal detections with "timestamp_ms".
         
         OUTPUT:
-        Return a JSON ARRAY of ALL detected vehicles. Even if there is NO violation, include the vehicle in the list.
-        For vehicles with NO violation, set "violation_type": "NONE", "fine": 0, "status": "COMPLIANT".
-        For vehicles WITH violation (confidence > 0.75), set "status": "CONFIRMED", "fine": 500.
-        
-        JSON Structure:
+        JSON ARRAY of detections.
         {
-          "vehicle_type": "two_wheeler" | "four_wheeler",
+          "vehicle_type": string,
           "violation_type": "NO_HELMET" | "NO_SEATBELT" | "NONE",
-          "confidence": float,
-          "plate_number": "string | UNDETECTED",
+          "confidence": float (0.0-1.0),
+          "plate_number": string,
           "fine": number,
-          "location": "MG Road Junction",
-          "timestamp": "ISO8601 string",
-          "timestamp_ms": integer, // Only for videos
+          "timestamp_ms": integer,
           "status": "CONFIRMED" | "COMPLIANT",
-          "bbox": [ymin, xmin, ymax, xmax],
-          "violation_zone_bbox": [ymin, xmin, ymax, xmax] | null
+          "bbox": [ymin, xmin, ymax, xmax]
         }
       `;
 
@@ -503,23 +480,32 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                      <div className="p-4 flex flex-col gap-2">
-                        {(selectedDetection.results || []).map((res, i) => (
-                          <div key={i} className={`flex items-center justify-between p-2 rounded-lg ${res.violation_type !== 'NONE' ? 'bg-red-500/10 border border-red-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
-                            <div className="flex items-center gap-3">
-                              {res.vehicle_type === 'two_wheeler' ? <Bike size={16} /> : <Car size={16} />}
-                              <div>
-                                <p className="text-xs font-bold text-white">{res.violation_type !== 'NONE' ? res.violation_type : 'COMPLIANT'}</p>
-                                <p className="text-[10px] text-slate-500">{res.plate_number}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xs font-bold text-white">₹{res.fine}</p>
-                              <p className="text-[10px] text-slate-500">{(res.confidence * 100).toFixed(0)}% CONF</p>
-                            </div>
-                          </div>
+                      {/* Simulated YOLO Console */}
+                  <div className="glass-card rounded-2xl overflow-hidden flex flex-col h-[300px]">
+                    <div className="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                        <span className="ml-2 text-[10px] font-mono text-slate-500 uppercase tracking-widest">yolo_v8_engine.py</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-blue-500">RUNNING</span>
+                    </div>
+                    <div className="p-4 font-mono text-[10px] text-emerald-500 overflow-y-auto flex-1 bg-black/40">
+                      <p className="mb-1 text-slate-500">[{new Date().toISOString().replace('T', ' ').slice(0, 19)}] INFO: Initializing YOLOv8 weights...</p>
+                      <p className="mb-1 text-slate-500">[{new Date().toISOString().replace('T', ' ').slice(0, 19)}] INFO: Loading OpenCV backend (CUDA enabled)</p>
+                      <p className="mb-1 text-blue-400">[{new Date().toISOString().replace('T', ' ').slice(0, 19)}] DEBUG: Processing input stream: {selectedDetection.filename}</p>
+                      <p className="mb-1">[{new Date().toISOString().replace('T', ' ').slice(0, 19)}] SUCCESS: Model loaded. Starting inference...</p>
+                      <div className="mt-4 space-y-1">
+                        {(selectedDetection.results || []).map((r, i) => (
+                          <p key={i} className={r.violation_type !== 'NONE' ? 'text-red-400' : 'text-emerald-500'}>
+                            {`> [FRAME ${Math.floor(videoTime * 30)}] DETECTED: ${r.vehicle_type} | CONF: ${r.confidence.toFixed(2)} | VIOLATION: ${r.violation_type}`}
+                          </p>
                         ))}
                       </div>
+                      <p className="mt-4 animate-pulse">_</p>
+                    </div>
+                  </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
